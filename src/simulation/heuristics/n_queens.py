@@ -18,7 +18,6 @@ class Chessboard:
         for i in range(self.size):
             row = ["Q" if j == self.queen_positions_per_row[i] else "." for j in range(self.size)]
             board_str += " ".join(row) + "\n"
-        board_str += f"Queens: {self.queen_positions_per_row}\n"
         return board_str.strip()
 
 
@@ -35,10 +34,9 @@ class Solver:
 
         for i in range(size):
             for j in range(i + 1, size):
-                if queen_positions_per_row[i] == queen_positions_per_row[j]:
-                    conflicts[i] += 1
-                    conflicts[j] += 1
-                if abs(queen_positions_per_row[i] - queen_positions_per_row[j]) == abs(i - j):
+                if queen_positions_per_row[i] == queen_positions_per_row[j] or abs(
+                    queen_positions_per_row[i] - queen_positions_per_row[j]
+                ) == abs(i - j):
                     conflicts[i] += 1
                     conflicts[j] += 1
 
@@ -51,49 +49,50 @@ class Solver:
 
     def solve(self) -> None:
         while self.current_step < self.max_steps and self._has_conflicts():
-            print(f"Step {self.current_step}:\n{self.board}")
-            print(f"Queen conflicts: {self._queen_conflicts}")
             self.current_step += 1
-            max_conflict_queen = self._find_max_conflict_queen()
-            min_conflict_position = self._find_min_conflict_position(max_conflict_queen)
-            print(
-                f"Moving queen {max_conflict_queen} from position {self.board.queen_positions_per_row[max_conflict_queen]} to position {min_conflict_position}"
-            )
-            self.board.queen_positions_per_row[max_conflict_queen] = min_conflict_position
-            print()
+            max_conflict_queens = self._find_max_conflict_queens()
+            queen_to_move = random.choice(max_conflict_queens)  # noqa: S311
+            min_conflict_positions = self._find_min_conflict_positions(queen_to_move)
+            new_position = random.choice(min_conflict_positions)  # noqa: S311
+            self.board.queen_positions_per_row[queen_to_move] = new_position
 
         if self._has_conflicts():
             raise RuntimeError("Failed to solve the board within the maximum number of steps.")  # noqa: TRY003
 
-    def _find_max_conflict_queen(self) -> int:
-        max_conflict_queen = self._queen_conflicts.index(max(self._queen_conflicts))
-        return max_conflict_queen
+    def _find_max_conflict_queens(self) -> list[int]:
+        max_conflicts = max(self._queen_conflicts)
+        max_conflict_queens = [i for i, conflicts in enumerate(self._queen_conflicts) if conflicts == max_conflicts]
+        return max_conflict_queens
 
-    def _find_min_conflict_position(self, queen_index: int) -> int:
+    def _find_min_conflict_positions(self, queen_index: int) -> list[int]:
         size = self.board.size
         queen_positions_per_row = self.board.queen_positions_per_row
-        min_conflict_position = queen_positions_per_row[queen_index]
         min_conflicts = float("inf")
+        min_conflict_positions = []
 
         for position in range(size):
             if position == queen_positions_per_row[queen_index]:
                 continue
+            original_position = queen_positions_per_row[queen_index]
             queen_positions_per_row[queen_index] = position
             conflicts = Solver._count_queen_conflicts(queen_positions_per_row)[queen_index]
+            queen_positions_per_row[queen_index] = original_position
+
             if conflicts < min_conflicts:
                 min_conflicts = conflicts
-                min_conflict_position = position
+                min_conflict_positions = [position]
+            elif conflicts == min_conflicts:
+                min_conflict_positions.append(position)
 
-        queen_positions_per_row[queen_index] = min_conflict_position
-        return min_conflict_position
+        return min_conflict_positions
 
 
 def main() -> None:
-    board = Chessboard.from_random_permutation(6)
-    solver = Solver(board, max_steps=10)
+    board = Chessboard.from_random_permutation(64)
+    solver = Solver(board, max_steps=100)
     solver.solve()
-    print("Solved board:")
-    print(solver.board)
+    print(f"Solved board in {solver.current_step} steps.")
+    # print(solver.board)
 
 
 if __name__ == "__main__":
