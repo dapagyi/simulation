@@ -33,6 +33,7 @@ class Solver:
         self.board = board
         self.max_steps = max_steps
         self.current_step = 0
+        self.status = SolverStatus.UNSOLVED
         self.row_conflicts = [0] * board.size
         self.diag1_conflicts = [0] * (2 * board.size - 1)  # Top-left to bottom-right diagonals
         self.diag2_conflicts = [0] * (2 * board.size - 1)  # Top-right to bottom-left diagonals

@@ -13,26 +13,25 @@ def test_permutation_initialization():
 
 
 def test_unsolvable_board():
-    max_steps = 10
+    max_steps = 100
 
-    board = Chessboard.from_random_permutation(3)
-    solver = Solver(board, max_steps)
-    with pytest.raises(RuntimeError, match="Failed to solve the board") as _e:
-        solver.solve()
-    assert solver.status == SolverStatus.REACHED_MAX_NUMBER_OF_STEPS
-
-    board = Chessboard.from_random_permutation(3)
-    solver = Solver(board, max_steps)
-    with pytest.raises(RuntimeError, match="Failed to solve the board"):
-        solver.solve()
-    assert solver.status == SolverStatus.REACHED_MAX_NUMBER_OF_STEPS
+    for n in [2, 3]:
+        board = Chessboard.from_random_permutation(n)
+        solver = Solver(board)
+        with pytest.raises(RuntimeError, match="Failed to solve the board"):
+            solver.solve()
+        assert solver.status == SolverStatus.REACHED_MAX_NUMBER_OF_STEPS
+        assert solver.current_step == max_steps
 
 
 def test_n_queens():
-    for n in [4, 8, 16, 32]:
-        max_steps = 100
+    for n in [4, 8, 16, 32, 64]:
+        max_steps = n * 100
+
         board = Chessboard.from_random_permutation(n)
         solver = Solver(board, max_steps=max_steps)
+        assert solver.status == SolverStatus.UNSOLVED
+        assert solver.current_step == 0
         solver.solve()
 
         assert solver.status == SolverStatus.SOLVED
