@@ -1,4 +1,5 @@
 import random
+from enum import Enum, auto
 
 
 class Chessboard:
@@ -21,11 +22,18 @@ class Chessboard:
         return board_str.strip()
 
 
+class SolverStatus(Enum):
+    UNSOLVED = auto()
+    SOLVED = auto()
+    REACHED_MAX_NUMBER_OF_STEPS = auto()
+
+
 class Solver:
     def __init__(self, board: Chessboard, max_steps: int = 100):
         self.board = board
         self.max_steps = max_steps
         self.current_step = 0
+        self.status = SolverStatus.UNSOLVED
 
     @staticmethod
     def _count_queen_conflicts(queen_positions_per_row: list[int]) -> list[int]:
@@ -57,7 +65,10 @@ class Solver:
             self.board.queen_positions_per_row[queen_to_move] = new_position
 
         if self._has_conflicts():
+            self.status = SolverStatus.REACHED_MAX_NUMBER_OF_STEPS
             raise RuntimeError("Failed to solve the board within the maximum number of steps.")  # noqa: TRY003
+
+        self.status = SolverStatus.SOLVED
 
     def _find_max_conflict_queens(self) -> list[int]:
         max_conflicts = max(self._queen_conflicts)
