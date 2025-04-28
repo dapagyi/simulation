@@ -33,27 +33,39 @@ class Solver:
         self.board = board
         self.max_steps = max_steps
         self.current_step = 0
-        self.status = SolverStatus.UNSOLVED
+        self.row_conflicts = [0] * board.size
+        self.diag1_conflicts = [0] * (2 * board.size - 1)  # Top-left to bottom-right diagonals
+        self.diag2_conflicts = [0] * (2 * board.size - 1)  # Top-right to bottom-left diagonals
+        self._initialize_conflicts()
 
-    @staticmethod
-    def _count_queen_conflicts(queen_positions_per_row: list[int]) -> list[int]:
-        size = len(queen_positions_per_row)
-        conflicts = [0] * size
+    def _initialize_conflicts(self) -> None:
+        for row, col in enumerate(self.board.queen_positions_per_row):
+            self.row_conflicts[col] += 1
+            self.diag1_conflicts[row - col + self.board.size - 1] += 1
+            self.diag2_conflicts[row + col] += 1
 
-        for i in range(size):
-            for j in range(i + 1, size):
-                if queen_positions_per_row[i] == queen_positions_per_row[j] or abs(
-                    queen_positions_per_row[i] - queen_positions_per_row[j]
-                ) == abs(i - j):
-                    conflicts[i] += 1
-                    conflicts[j] += 1
+    def _update_conflicts(self, row: int, old_col: int, new_col: int) -> None:
+        self.row_conflicts[old_col] -= 1
+        self.diag1_conflicts[row - old_col + self.board.size - 1] -= 1
+        self.diag2_conflicts[row + old_col] -= 1
 
-        return conflicts
+        self.row_conflicts[new_col] += 1
+        self.diag1_conflicts[row - new_col + self.board.size - 1] += 1
+        self.diag2_conflicts[row + new_col] += 1
+
+    def _count_conflicts_for_position(self, row: int, col: int) -> int:
+        return (
+            self.row_conflicts[col]
+            + self.diag1_conflicts[row - col + self.board.size - 1]
+            + self.diag2_conflicts[row + col]
+            - 3  # Exclude the queen itself
+        )
 
     def _has_conflicts(self) -> bool:
-        queen_conflicts = Solver._count_queen_conflicts(self.board.queen_positions_per_row)
-        self._queen_conflicts = queen_conflicts
-        return any(conflicts > 0 for conflicts in self._queen_conflicts)
+        return any(
+            self._count_conflicts_for_position(row, col) > 0
+            for row, col in enumerate(self.board.queen_positions_per_row)
+        )
 
     def solve(self) -> None:
         while self.current_step < self.max_steps and self._has_conflicts():
@@ -62,7 +74,10 @@ class Solver:
             queen_to_move = random.choice(max_conflict_queens)  # noqa: S311
             min_conflict_positions = self._find_min_conflict_positions(queen_to_move)
             new_position = random.choice(min_conflict_positions)  # noqa: S311
+
+            old_position = self.board.queen_positions_per_row[queen_to_move]
             self.board.queen_positions_per_row[queen_to_move] = new_position
+            self._update_conflicts(queen_to_move, old_position, new_position)
 
         if self._has_conflicts():
             self.status = SolverStatus.REACHED_MAX_NUMBER_OF_STEPS
@@ -71,29 +86,31 @@ class Solver:
         self.status = SolverStatus.SOLVED
 
     def _find_max_conflict_queens(self) -> list[int]:
-        max_conflicts = max(self._queen_conflicts)
-        max_conflict_queens = [i for i, conflicts in enumerate(self._queen_conflicts) if conflicts == max_conflicts]
+        max_conflicts = -1
+        max_conflict_queens = []
+        for row, col in enumerate(self.board.queen_positions_per_row):
+            conflicts = self._count_conflicts_for_position(row, col)
+            if conflicts > max_conflicts:
+                max_conflicts = conflicts
+                max_conflict_queens = [row]
+            elif conflicts == max_conflicts:
+                max_conflict_queens.append(row)
         return max_conflict_queens
 
     def _find_min_conflict_positions(self, queen_index: int) -> list[int]:
         size = self.board.size
-        queen_positions_per_row = self.board.queen_positions_per_row
         min_conflicts = float("inf")
         min_conflict_positions = []
 
-        for position in range(size):
-            if position == queen_positions_per_row[queen_index]:
+        for col in range(size):
+            if col == self.board.queen_positions_per_row[queen_index]:
                 continue
-            original_position = queen_positions_per_row[queen_index]
-            queen_positions_per_row[queen_index] = position
-            conflicts = Solver._count_queen_conflicts(queen_positions_per_row)[queen_index]
-            queen_positions_per_row[queen_index] = original_position
-
+            conflicts = self._count_conflicts_for_position(queen_index, col)
             if conflicts < min_conflicts:
                 min_conflicts = conflicts
-                min_conflict_positions = [position]
+                min_conflict_positions = [col]
             elif conflicts == min_conflicts:
-                min_conflict_positions.append(position)
+                min_conflict_positions.append(col)
 
         return min_conflict_positions
 
